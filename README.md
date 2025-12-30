@@ -62,11 +62,11 @@ cfg_tt::cfg_tt! {
 
 The following usages are not (yet) supported:
 
-- Stacked `#[cfg]` attributes without an intervening token tree  
+- Stacked `#[cfg]` attributes
   (e.g. `#[cfg(x)] #[cfg(x)]`)
 
 - Nested overlapping `#[cfg]`s  
   (e.g. `#[cfg(any(x, y))] { #[cfg(x)] { pub struct Foo; } }`)
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/OpenByteDev/cfg-tt/blob/master/LICENSE) file for details.

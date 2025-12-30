@@ -27,7 +27,6 @@ jobs:
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.toolchain }}
           target: ${{ matrix.target }}
       - name: Build
         run: cargo build --target "${{ matrix.target }}"

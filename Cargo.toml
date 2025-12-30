@@ -1,7 +1,7 @@
 [package]
 name = "cfg-tt"
 version = "0.1.0"
-description = "A procedural macro that allows using `#[cfg]` anywhere and at token granularity."
+description = "A procedural macro that allows using #[cfg] anywhere and at token granularity."
 readme = "README.md"
 repository = "https://github.com/OpenByteDev/dll-syringe" 
 homepage = "https://github.com/OpenByteDev/dll-syringe"
@@ -11,10 +11,10 @@ authors = ["OpenByte <development.openbyte@gmail.com>"]
 edition = "2024"
 keywords = [
     "cfg",
-    "conditional-compilation",
+    "token",
+    "anywhere",
     "proc-macro",
     "token-tree",
-    "preprocessing",
 ]
 categories = [
     "rust-patterns"

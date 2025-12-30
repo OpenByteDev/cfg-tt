@@ -1,0 +1,32 @@
+[package]
+name = "cfg-tt"
+version = "0.1.0"
+readme = "README.md"
+repository = "https://github.com/OpenByteDev/dll-syringe" 
+homepage = "https://github.com/OpenByteDev/dll-syringe"
+documentation = "https://docs.rs/dll-syringe"
+license = "MIT"
+authors = ["OpenByte <development.openbyte@gmail.com>"]
+edition = "2024"
+keywords = [
+    "cfg",
+    "conditional-compilation",
+    "proc-macro",
+    "token-tree",
+    "preprocessing",
+]
+categories = [
+    "rust-patterns"
+]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "parsing", "extra-traits"] }
+
+[dev-dependencies]
+trybuild = "1.0"
+static_assertions = "1.1.0"

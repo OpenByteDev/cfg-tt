@@ -57,16 +57,15 @@ jobs:
       - name: Clippy check
         run: cargo clippy --all-features
       
-  hack:
+  machete:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - name: Install latest nightly
         uses: dtolnay/rust-toolchain@nightly
-      - name: cargo install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
-      - name: cargo hack
-        run: cargo hack --feature-powerset check
+      - name: cargo install cargo-machete
+        uses: taiki-e/install-action@cargo-machete
+      - run: cargo machete
         
   fmt:
     runs-on: ubuntu-latest

@@ -217,7 +217,5 @@ pub fn cfg_tt(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
 
-    // panic!("{}", out.to_string());
-
     out.into()
 }

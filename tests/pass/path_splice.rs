@@ -7,12 +7,12 @@ mod m {
 
 cfg_tt! {
     pub fn f() -> i32 {
-        m::#[cfg(unix)] unix #[cfg(windows)] windows ()
+        m::#[cfg(not(windows))] unix #[cfg(windows)] windows ()
     }
 }
 
 fn main() {
-    #[cfg(unix)]
+    #[cfg(not(windows))]
     assert_eq!(f(), 1);
     #[cfg(windows)]
     assert_eq!(f(), 2);

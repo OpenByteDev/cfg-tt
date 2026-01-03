@@ -1,98 +1,38 @@
 #![doc = include_str!("../README.md")]
 
+mod cfg;
+use cfg::*;
+mod find;
+use find::*;
+
 use std::{collections::HashSet, iter};
 
 use proc_macro2::{Delimiter, Group, TokenStream, TokenTree};
 use quote::ToTokens;
-use syn::parse::Parse;
-use syn::parse::ParseStream;
-use syn::{Attribute, Item};
+use syn::{
+    Item, Stmt,
+    parse::{Parse, ParseStream},
+};
 
-struct AnyAttribute(Attribute);
+struct Many<T>(Vec<T>);
 
-impl Parse for AnyAttribute {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let content;
-        let attr = Attribute {
-            pound_token: input.parse()?,
-            style: input
-                .parse::<syn::token::Not>()
-                .ok()
-                .map_or_else(|| syn::AttrStyle::Outer, syn::AttrStyle::Inner),
-            bracket_token: syn::bracketed!(content in input),
-            meta: content.parse()?,
-        };
-        Ok(Self(attr))
-    }
-}
-
-struct Items(Vec<Item>);
-
-impl Parse for Items {
+impl<T: Parse> Parse for Many<T> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut items = Vec::new();
         while !input.is_empty() {
-            items.push(input.parse::<Item>()?);
+            items.push(input.parse::<T>()?);
         }
-        Ok(Items(items))
+        Ok(Many(items))
     }
 }
 
-fn parse_any_attr(ts: TokenStream) -> syn::Result<Attribute> {
-    syn::parse2::<AnyAttribute>(ts).map(|a| a.0)
-}
-
-fn find_cfg_attrs(ts: TokenStream) -> HashSet<Attribute> {
-    fn core(ts: TokenStream, out: &mut HashSet<Attribute>) {
-        let mut it = ts.into_iter().peekable();
-
-        while let Some(tt) = it.next() {
-            match &tt {
-                TokenTree::Group(g) => {
-                    core(g.stream(), out);
-                }
-                TokenTree::Punct(p) if p.as_char() == '#' => {
-                    // # ...
-                    let Some(TokenTree::Group(g)) = it.peek() else {
-                        continue;
-                    };
-                    if g.delimiter() != Delimiter::Bracket {
-                        continue;
-                    }
-
-                    // #[ ... ]
-                    let mut attr_ts = TokenStream::new();
-                    attr_ts.extend(iter::once(tt.clone()));
-                    attr_ts.extend(iter::once(TokenTree::Group(g.clone())));
-
-                    let Ok(attr) = parse_any_attr(attr_ts) else {
-                        continue;
-                    };
-                    if !attr.path().is_ident("cfg") {
-                        continue;
-                    }
-
-                    // #[cfg(...)]
-                    out.insert(attr);
-                    let _ = it.next();
-                }
-                _ => {}
-            }
-        }
-    }
-
-    let mut out = HashSet::new();
-    core(ts, &mut out);
-    out
-}
-
-fn expand_for_cfg(ts: TokenStream, cfg: &Attribute) -> TokenStream {
+fn expand_for_cfg(ts: TokenStream, active_cfg: &Cfg) -> TokenStream {
     let mut it = ts.into_iter().peekable();
     let mut out = TokenStream::new();
     while let Some(tt) = it.next() {
         match &tt {
             TokenTree::Group(g) => {
-                let expanded = expand_for_cfg(g.stream(), cfg);
+                let expanded = expand_for_cfg(g.stream(), active_cfg);
                 let expanded = TokenTree::Group(Group::new(g.delimiter(), expanded));
                 out.extend([expanded]);
             }
@@ -113,23 +53,26 @@ fn expand_for_cfg(ts: TokenStream, cfg: &Attribute) -> TokenStream {
                 let Ok(attr) = parse_any_attr(attr_ts) else {
                     continue;
                 };
+                let Some(cfg) = Cfg::from_attr(&attr) else {
+                    continue;
+                };
                 if !attr.path().is_ident("cfg") {
                     continue;
                 }
 
-                // #[cfg(...)]
+                // consume #[cfg(...)]
                 let _ = it.next();
 
                 // target of cfg
                 let Some(target) = it.next() else { continue };
-                if cfg == &attr {
+                if active_cfg.is_active_subset(&cfg) {
                     // active
                     let target = if let TokenTree::Group(g) = target {
                         g.stream()
                     } else {
                         target.into_token_stream()
                     };
-                    let expanded = expand_for_cfg(target, cfg);
+                    let expanded = expand_for_cfg(target, active_cfg);
                     out.extend([expanded]);
                 } else {
                     // dont emit anything
@@ -142,6 +85,73 @@ fn expand_for_cfg(ts: TokenStream, cfg: &Attribute) -> TokenStream {
     }
 
     out
+}
+
+fn generate_all_combinations(cfgs: Vec<Cfg>) -> Vec<Cfg> {
+    fn core<T: Clone>(
+        items: &[T],
+        i: usize,
+        acc: &mut Vec<(T, bool)>,
+        out: &mut impl FnMut(&Vec<(T, bool)>),
+    ) {
+        if i == items.len() {
+            out(acc);
+            return;
+        }
+
+        // excluded
+        acc.push((items[i].clone(), false));
+        core(items, i + 1, acc, out);
+        acc.pop();
+
+        // included
+        acc.push((items[i].clone(), true));
+        core(items, i + 1, acc, out);
+        acc.pop();
+    }
+
+    let mut acc = Vec::with_capacity(cfgs.len());
+    let mut out = Vec::with_capacity(cfgs.len() * cfgs.len());
+    core(&cfgs, 0, &mut acc, &mut |cfgs| {
+        let list = cfgs
+            .iter()
+            .cloned()
+            .map(
+                |(cfg, active)| {
+                    if active { cfg } else { Cfg::Not(Box::new(cfg)) }
+                },
+            )
+            .collect();
+        out.push(Cfg::All(list));
+    });
+    out
+}
+
+fn find_base_cfgs(input: impl IntoIterator<Item = Cfg>) -> Vec<Cfg> {
+    let mut cfgs = HashSet::new();
+
+    // Remove duplicates and negations
+    for cfg in input.into_iter() {
+        match cfg {
+            Cfg::Not(inner) => cfgs.insert(*inner),
+            _ => cfgs.insert(cfg),
+        };
+    }
+
+    // Remove all() if all inner cfgs exist
+    let cfgs: Vec<Cfg> = cfgs
+        .iter()
+        .filter(|cfg| match cfg {
+            Cfg::All(xs) => !xs.iter().all(|child| match child {
+                Cfg::Not(inner) => cfgs.contains(inner),
+                _ => cfgs.contains(child),
+            }),
+            _ => true,
+        })
+        .cloned()
+        .collect();
+
+    cfgs
 }
 
 /// Apply `#[cfg(...)]` at **token-tree granularity**, anywhere.
@@ -162,19 +172,36 @@ fn expand_for_cfg(ts: TokenStream, cfg: &Attribute) -> TokenStream {
 #[proc_macro]
 pub fn cfg_tt(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let content: TokenStream = input.into();
+
+    // Collect all occurances or #[cfg()] in the input
     let cfgs = find_cfg_attrs(content.clone());
+    if cfgs.is_empty() {
+        // Nothing to do
+        return content.into();
+    }
+
+    let cfgs = find_base_cfgs(cfgs);
+
+    // Now construct every possible combination of applicable configurations
+    let configurations = generate_all_combinations(cfgs);
 
     let mut out = TokenStream::new();
-    for cfg in &cfgs {
+    for cfg in &configurations {
         let expanded = expand_for_cfg(content.clone(), cfg);
-        let items = match syn::parse2::<Items>(expanded.clone()) {
+        let items = match syn::parse2::<Many<Item>>(expanded.clone()) {
             Ok(items) => items.0.iter().map(|item| item.to_token_stream()).collect(),
-            Err(_) => vec![expanded],
+            Err(_) => match syn::parse2::<Many<Stmt>>(expanded.clone()) {
+                Ok(stmts) => stmts.0.iter().map(|item| item.to_token_stream()).collect(),
+                Err(_) => vec![expanded],
+            },
         };
+
         for item in items {
-            out.extend([cfg.into_token_stream(), item]);
+            out.extend([cfg.to_token_stream(), item]);
         }
     }
+
+    // panic!("{}", out.to_string());
 
     out.into()
 }

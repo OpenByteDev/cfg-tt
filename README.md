@@ -21,19 +21,19 @@ Given the following code:
 ```rust
 cfg_tt::cfg_tt! {
     pub fn f() -> i32 {
-        1 #[cfg(unix)] + #[cfg(windows)] * 1
+        1 #[cfg(windows)] + #[cfg(not(windows))] * 1
     }
 }
 ```
 
 It (currently) expands to:
 ```rust
-#[cfg(unix)]
+#[cfg(windows)]
 pub fn f() -> i32 {
     1 + 1
 }
 
-#[cfg(windows)]
+#[cfg(not(windows))]
 pub fn f() -> i32 {
     1 * 1
 }
@@ -53,7 +53,7 @@ To conditionally include multiple token trees, they must be wrapped in a group:
 ```rust
 cfg_tt::cfg_tt! {
     let x =
-        #[cfg(unix)] { 10 + 20 }
+        #[cfg(not(windows))] { 10 + 20 }
         #[cfg(windows)] { 1 + 2 };
 }
 ```

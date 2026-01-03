@@ -2,20 +2,20 @@ use cfg_tt::cfg_tt;
 
 cfg_tt! {
     pub fn duplicated_cfg() -> i32 {
-        #[cfg(unix)] {
+        #[cfg(not(windows))] {
             let x: i32 =
-                #[cfg(unix)] 1
-                #[cfg(not(unix))] {
-                    #[cfg(not(unix))] {
+                #[cfg(not(windows))] 1
+                #[cfg(windows)] {
+                    #[cfg(windows)] {
                         2
                     }
                 };
         }
-        #[cfg(not(unix))] {
+        #[cfg(windows)] {
             let x: i32 =
-                #[cfg(unix)] 1
-                #[cfg(not(unix))] {
-                    #[cfg(not(unix))] {
+                #[cfg(not(windows))] 1
+                #[cfg(windows)] {
+                    #[cfg(windows)] {
                         2
                     }
                 };
@@ -27,9 +27,9 @@ cfg_tt! {
 fn main() {
     let x = duplicated_cfg();
 
-    #[cfg(unix)]
+    #[cfg(not(windows))]
     assert_eq!(x, 1);
 
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     assert_eq!(x, 2);
 }

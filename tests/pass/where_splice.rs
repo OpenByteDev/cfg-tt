@@ -11,9 +11,9 @@ impl B for S { fn b(&self) -> i32 { 2 } }
 cfg_tt! {
     pub fn f<T>(t: &T) -> i32
     where
-        T: #[cfg(unix)] A #[cfg(windows)] B
+        T: #[cfg(not(windows))] A #[cfg(windows)] B
     {
-        #[cfg(unix)] { t.a() }
+        #[cfg(not(windows))] { t.a() }
         #[cfg(windows)] { t.b() }
     }
 }

@@ -115,10 +115,14 @@ fn generate_all_combinations(cfgs: Vec<Cfg>) -> Vec<Cfg> {
         acc.pop();
     }
 
+    if cfgs.is_empty() {
+        return Vec::new();
+    }
+
     let mut acc = Vec::with_capacity(cfgs.len());
     let mut out = Vec::with_capacity(cfgs.len() * cfgs.len());
     core(&cfgs, 0, &mut acc, &mut |cfgs| {
-        let list = cfgs
+        let mut list = cfgs
             .iter()
             .cloned()
             .map(
@@ -126,8 +130,13 @@ fn generate_all_combinations(cfgs: Vec<Cfg>) -> Vec<Cfg> {
                     if active { cfg } else { Cfg::Not(Box::new(cfg)) }
                 },
             )
-            .collect();
-        out.push(Cfg::All(list));
+            .collect::<Vec<_>>();
+        out.push(
+            if list.len() == 1 {
+                list.pop().unwrap()
+            } else {
+                Cfg::All(list)
+            });
     });
     out
 }
@@ -139,6 +148,8 @@ fn find_base_cfgs(input: impl IntoIterator<Item = Cfg>) -> Vec<Cfg> {
     for cfg in input.into_iter() {
         match cfg {
             Cfg::Not(inner) => cfgs.insert(*inner),
+            Cfg::All(list) | Cfg::Any(list) if list.is_empty() => false,
+            Cfg::All(list) | Cfg::Any(list) if list.len() == 1 => cfgs.insert(list[0].clone()),
             _ => cfgs.insert(cfg),
         };
     }

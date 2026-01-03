@@ -39,9 +39,11 @@ fn expand_for_cfg(ts: TokenStream, active_cfg: &Cfg) -> TokenStream {
             TokenTree::Punct(p) if p.as_char() == '#' => {
                 // # ...
                 let Some(TokenTree::Group(g)) = it.peek() else {
+                    out.extend([tt]);
                     continue;
                 };
                 if g.delimiter() != Delimiter::Bracket {
+                    out.extend([tt]);
                     continue;
                 }
 
@@ -51,12 +53,15 @@ fn expand_for_cfg(ts: TokenStream, active_cfg: &Cfg) -> TokenStream {
                 attr_ts.extend(iter::once(TokenTree::Group(g.clone())));
 
                 let Ok(attr) = parse_any_attr(attr_ts) else {
+                    out.extend([tt]);
                     continue;
                 };
                 let Some(cfg) = Cfg::from_attr(&attr) else {
+                    out.extend([tt]);
                     continue;
                 };
                 if !attr.path().is_ident("cfg") {
+                    out.extend([tt]);
                     continue;
                 }
 

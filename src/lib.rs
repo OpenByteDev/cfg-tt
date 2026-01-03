@@ -70,7 +70,7 @@ fn expand_for_cfg(ts: TokenStream, active_cfg: &Cfg) -> TokenStream {
 
                 // target of cfg
                 let Some(target) = it.next() else { continue };
-                if active_cfg.is_active_subset(&cfg) {
+                if active_cfg.implies(&cfg) {
                     // active
                     let target = if let TokenTree::Group(g) = target {
                         g.stream()

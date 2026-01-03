@@ -131,12 +131,11 @@ fn generate_all_combinations(cfgs: Vec<Cfg>) -> Vec<Cfg> {
                 },
             )
             .collect::<Vec<_>>();
-        out.push(
-            if list.len() == 1 {
-                list.pop().unwrap()
-            } else {
-                Cfg::All(list)
-            });
+        out.push(if list.len() == 1 {
+            list.pop().unwrap()
+        } else {
+            Cfg::All(list)
+        });
     });
     out
 }

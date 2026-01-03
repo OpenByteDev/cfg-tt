@@ -6,9 +6,31 @@ cfg_tt! {
     type Bar = Foo::#[cfg(not(windows))](<u8>) #[cfg(windows)](<u16>);
 }
 
+macro_rules! assert_type_eq {
+    ($first:ty, $($others:ty),+ $(,)*) => {
+        const _: fn() = || { $({
+            trait TypeEq {
+                type This: ?Sized;
+            }
+
+            impl<T: ?Sized> TypeEq for T {
+                type This = Self;
+            }
+
+            fn assert_type_eq_all<T, U>()
+            where
+                T: ?Sized + TypeEq<This = U>,
+                U: ?Sized,
+            {}
+
+            assert_type_eq_all::<$first, $others>();
+        })+ };
+    };
+}
+
 fn main() {
     #[cfg(not(windows))]
-    static_assertions::assert_type_eq_all!(Bar, Foo<u8>);
+    assert_type_eq!(Bar, Foo<u8>);
     #[cfg(windows)]
-    static_assertions::assert_type_eq_all!(Bar, Foo<u16>);
+    assert_type_eq!(Bar, Foo<u16>);
 }

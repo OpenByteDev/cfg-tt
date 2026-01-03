@@ -30,4 +30,3 @@ syn = { version = "2.0", features = ["full", "parsing", "extra-traits"] }
 
 [dev-dependencies]
 trybuild = "1.0"
-static_assertions = "1.1.0"

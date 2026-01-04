@@ -65,8 +65,5 @@ The following usages are not (yet) supported:
 - Stacked `#[cfg]` attributes
   (e.g. `#[cfg(x)] #[cfg(x)]`)
 
-- Nested overlapping `#[cfg]`s  
-  (e.g. `#[cfg(any(x, y))] { #[cfg(x)] { pub struct Foo; } }`)
-
 ## License
 This project is licensed under the MIT License. See the [LICENSE](https://github.com/OpenByteDev/cfg-tt/blob/master/LICENSE) file for details.
